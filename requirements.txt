@@ -1,0 +1,4 @@
+flowlauncher
+requests
+thefuzz[speedup]
+# Add other dependencies as needed, e.g., python-dotenv for config 
