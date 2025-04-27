@@ -1,4 +1,7 @@
 flowlauncher
 requests
 thefuzz[speedup]
+pytest
+pytest-mock
+pynput
 # Add other dependencies as needed, e.g., python-dotenv for config 

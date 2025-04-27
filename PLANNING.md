@@ -2,33 +2,39 @@
 
 ## Project Goal
 
-To create a Flow Launcher plugin that allows users to quickly search for and control music playback on Deezer using the shortcut `de`.
+To create a Flow Launcher plugin that allows users to quickly search Deezer and control playback **exclusively within the Deezer Desktop App** using the shortcut `de`.
 
 ## Core Features
 
 - **Shortcut Activation:** Trigger plugin using `de`.
 - **Commands:**
-    - `play`: Resume playback in the active Deezer web player tab (Potentially via Javascript SDK interaction or browser extension mechanisms if feasible, otherwise might just open Deezer).
-    - `stop`/`pause`: Pause playback in the active Deezer web player tab (Similar approach to `play`).
-    - `play <album name>`: Search Deezer for the album and open it in the browser, potentially starting playback.
-    - `play <artist name>`: Search Deezer for the artist, open their page or top tracks in the browser, potentially starting playback.
-    - `play <playlist name>`: Search Deezer for the playlist and open it in the browser, potentially starting playback.
-- **Fuzzy Search:** Handle typos and variations in search queries for albums, artists, and playlists.
-- **Feedback:** Display search results and playback status information within Flow Launcher.
+    - `play`: Attempt to send an OS-level 'Play/Pause' media key command, targeting the Deezer Desktop App (if running).
+    - `stop`/`pause`: Attempt to send an OS-level 'Play/Pause' or 'Stop' media key command, targeting the Deezer Desktop App (if running).
+    - `play <album name>`: Search Deezer via API and attempt to trigger playback of the best match **in the Desktop App**.
+    - `play <artist name>`: Search Deezer via API and attempt to trigger playback of the artist's top tracks **in the Desktop App**.
+    - `play <playlist name>`: Search Deezer via API and attempt to trigger playback of the best match **in the Desktop App**.
+    - `play <track name>`: Search Deezer via API and attempt to trigger playback of the best match **in the Desktop App**.
+- **Fuzzy Search:** Handle typos and variations in search queries for albums, artists, playlists, and tracks.
+- **Feedback:** Display search results (indicating they will target the desktop app) and actions within Flow Launcher.
 
 ## Architecture
 
 - **Plugin Structure:** Standard Flow Launcher Python plugin structure (`plugin.json`, main Python script).
 - **Deezer Interaction:**
-    - Use the official Deezer API (`api.deezer.com`) for searching albums, artists, and playlists.
-    - Authentication (OAuth) will likely be required for API interaction (especially search and potential SDK use). Store credentials securely.
-    - **Playback Control & Interaction:**
-        - For `play`/`stop`/`pause` commands targeting the *active Deezer tab*, the simplest approach is likely just opening/focusing `deezer.com`. More advanced control might require:
-            - Investigating the Deezer Javascript SDK within a browser context (potentially complex to orchestrate from Flow Launcher).
-            - Browser extensions or automation tools (likely outside the scope of a simple plugin).
-        - For `play <item>` commands, use the API to search. The primary action will be opening the corresponding Deezer web URL (e.g., `https://deezer.com/album/...`). Starting playback automatically might be possible via specific URL parameters or SDK calls if feasible.
+    - Use the official Deezer API (`api.deezer.com`) for searching albums, artists, playlists, and tracks to get IDs and metadata.
+    - **Authentication:**
+        - **Current Status (Important):** As of [Date - e.g., Aug 2024], Deezer is **not accepting new application registrations**. Basic API search works without authentication.
+        - **Future Needs:** Unlikely to be needed unless Deezer adds desktop app control features requiring OAuth, which is currently blocked anyway.
+    - **Desktop App Control:**
+        - **Generic Controls (`play`/`stop`/`pause`):** The primary approach will be to **simulate OS-level media key presses** (Play/Pause, Stop). This relies on the Deezer Desktop App being installed, running, and responsive to these keys.
+        - **Specific Content Playback (`play <item>`):** This is the main challenge. Requires investigation into:
+            - **Custom URI Scheme:** Does the Deezer Desktop App register a scheme like `deezer://play?type=album&id={id}` that can be called by the OS?
+            - **Command-Line Arguments:** Can `Deezer.exe` be launched with arguments specifying content to play?
+            - **Other IPC/Automation:** Less likely methods like OS-level automation or inter-process communication.
+        - **Fallback:** If triggering specific content fails, the `play <item>` commands might fall back to just bringing the Deezer Desktop App to the foreground.
+        - **Web Player control is explicitly out of scope.**
 - **Search Logic:** Implement fuzzy matching using a library like `thefuzz` to improve search tolerance.
-- **UI:** Utilize Flow Launcher's result list API to display search results and actions.
+- **UI:** Utilize Flow Launcher's result list API to display search results and actions targeting the desktop app.
 
 ## Key Technologies
 
@@ -37,28 +43,37 @@ To create a Flow Launcher plugin that allows users to quickly search for and con
 - **Libraries:**
     - `requests`: For interacting with the Deezer API.
     - `thefuzz` (or similar like `fuzzywuzzy`): For fuzzy string matching.
-    - `webbrowser`: Standard Python library to open URLs in the default browser.
-    - Potentially a library for handling OAuth flow if needed for API authentication.
+    - `pynput` (Potential): For simulating OS-level keyboard events (like media keys).
+    - `subprocess` / `os` (Potential): For launching Deezer with arguments or opening URI schemes.
+    - ~~`webbrowser`~~ (Removed: No longer opening web URLs).
+    - ~~Potentially a library for handling OAuth flow if needed for API authentication.~~ (Deferred due to registration block)
     - `pydantic` (Optional): For structuring API responses or plugin settings.
 
 ## Development Plan / Phases
 
-1.  **Setup & Basic API:**
+1.  **Setup & Basic API:** (Mostly Complete)
     - Set up Flow Launcher Python plugin boilerplate.
-    - Implement basic API calls (e.g., simple search) to verify connectivity and authentication flow (if required).
+    - Implement basic API calls (search) and verify connectivity.
     - Define `plugin.json`.
-2.  **Search Implementation:**
-    - Implement search logic for albums, artists, and playlists using the Deezer API.
+2.  **Search Implementation:** (Mostly Complete)
+    - Implement search logic for albums, artists, playlists, tracks using the Deezer API.
     - Integrate fuzzy search library.
-    - Display search results in Flow Launcher.
-3.  **Playback Initiation:**
-    - Implement opening Deezer web URLs based on search results using the `webbrowser` module.
-    - Investigate if direct playback initiation via URL parameters or simple SDK calls is possible/practical.
-    - Handle potential authentication requirements for API search/SDK use.
-4.  **Web Play/Pause Control (Basic):**
-    - Implement `play`/`stop` commands to simply open `deezer.com` or potentially focus an existing Deezer tab if Flow Launcher/OS allows. Advanced control (actual pause/resume) is a stretch goal depending on complexity.
+    - Display search results in Flow Launcher (update text to reflect desktop target).
+3.  **Desktop App Generic Control:**
+    - Investigate and implement simulating OS media key presses (Play/Pause, Stop) using `pynput` or similar.
+    - Add logic in `main.py` to trigger these keys for `de play` (no search term), `de stop`, `de pause`.
+    - Update Flow results for these commands.
+4.  **Desktop App Specific Content Control:**
+    - **Investigate:** Research Deezer Desktop App's custom URI scheme or command-line arguments for playing specific content IDs (albums, tracks, etc.).
+    - **Implement:** If a method is found, modify `main.py` / `deezer_client.py`:
+        - Extract necessary IDs (album, track, etc.) from API results.
+        - Construct the appropriate URI or command line.
+        - Use `os.startfile` (for URIs) or `subprocess.run` (for commands) to trigger playback in the desktop app for `play <item>` results.
+    - **Fallback:** Implement fallback behavior (e.g., just focus app) if specific playback cannot be triggered.
 5.  **Testing & Refinement:**
-    - Add basic unit tests (using `pytest`) for API interaction logic and search functionality (place in `/tests`).
+    - Add/update unit tests for API logic.
+    - Test media key simulation reliability.
+    - Test specific content triggering reliability.
     - Refine fuzzy search parameters.
     - Improve error handling and user feedback.
     - Add docstrings and type hints.
@@ -66,12 +81,12 @@ To create a Flow Launcher plugin that allows users to quickly search for and con
 
 ## Potential Challenges
 
-- **Direct Web Player Control:** Controlling playback (play/pause/next/prev) in an *existing* browser tab from an external application like Flow Launcher is non-trivial and might require browser extensions or complex Javascript injection, potentially limiting functionality to just *opening* URLs.
-- **API Authentication:** Implementing and managing OAuth securely within a Flow Launcher plugin.
-- **API Rate Limits:** Handling potential rate limits from the Deezer API.
-- **Fuzzy Search Accuracy:** Tuning fuzzy search to provide relevant results without being too broad.
-- **Identifying Active Tab:** Reliably identifying and interacting with the correct Deezer tab among potentially many browser tabs.
-- **Platform Differences:** Removed, as OS-level media keys are no longer the primary approach.
+- **Desktop App Specific Content Control:** Finding a reliable way (URI scheme, command-line) to trigger specific content playback in the Deezer Desktop App is the main uncertainty. This might not be possible.
+- **Desktop App Control Reliability (Generic Keys):** Simulating media keys might not work if the Deezer Desktop App isn't running, isn't the active media application, or doesn't respond correctly. Requires desktop app installation.
+- **API Authentication:** (Currently Blocked) Less relevant now, as desktop control likely doesn't use the API auth, but registration block still exists.
+- **API Rate Limits:** Still applies to API searches.
+- **Fuzzy Search Accuracy:** Still applies.
+- **Platform Differences:** Media key simulation and URI/command-line launching might differ across OS versions.
 
 ## Style & Conventions
 
@@ -79,6 +94,6 @@ To create a Flow Launcher plugin that allows users to quickly search for and con
 - Use **Type Hints** for all function signatures and critical variables.
 - Format code using **`black`**.
 - Write **Google Style Docstrings** for all classes, methods, and functions.
-- Structure code modularly, potentially separating Deezer API logic into its own module.
+- Structure code modularly.
 - Keep files under 500 lines; refactor if necessary.
 - Add unit tests to a `/tests` directory mirroring the main structure.
