@@ -52,30 +52,37 @@ class DeezerClient:
             raise
 
     def search(self, query: str, search_type: str = "track") -> List[Dict[str, Any]]:
-        """Performs a general search on Deezer.
+        """Performs a search on Deezer for a specific type.
 
         Args:
             query: The search term.
-            search_type: Type of search (track, album, artist, playlist). Defaults to track.
+            search_type: Type of search (track, album, artist, playlist).
 
         Returns:
             A list of search result items (dictionaries).
         """
-        # Basic search - might need refinement for specific types
-        endpoint = f"/search"
-        params = {"q": query}
-        # TODO: Potentially specify type if API supports e.g., /search/{type}?q=...
-        # endpoint = f"/search/{search_type}"
+        # Use specific endpoints for clarity and guaranteed type
+        if search_type not in ["track", "album", "artist", "playlist"]:
+            # Default or fallback to general search if type is invalid/unspecified
+            endpoint = "/search"
+            params = {"q": query}
+        else:
+            endpoint = f"/search/{search_type}"
+            params = {"q": query}
+            # Optional: Add ordering parameter if needed, e.g.:
+            # params['order'] = 'RANKING' # Default
 
         try:
             results = self._make_request(endpoint, params=params)
+            # API returns results under the 'data' key
             return results.get("data", [])
         except (requests.exceptions.RequestException, ValueError) as e:
-            print(f"Error searching Deezer for '{query}': {e}")
+            # Log error or handle specific exceptions
+            print(f"Error searching Deezer ({search_type}) for '{query}': {e}")
             return []
 
     def search_albums(self, query: str) -> List[Dict[str, Any]]:
-        """Searches specifically for albums.
+        """Searches specifically for albums using the /search/album endpoint.
 
         Args:
             query: The album name to search for.
@@ -83,12 +90,10 @@ class DeezerClient:
         Returns:
             A list of album result items.
         """
-        # Placeholder - uses general search for now
-        # TODO: Refine if /search/album endpoint behaves differently or provides more useful data
         return self.search(query, search_type="album")
 
     def search_artists(self, query: str) -> List[Dict[str, Any]]:
-        """Searches specifically for artists.
+        """Searches specifically for artists using the /search/artist endpoint.
 
         Args:
             query: The artist name to search for.
@@ -96,11 +101,10 @@ class DeezerClient:
         Returns:
             A list of artist result items.
         """
-        # Placeholder - uses general search for now
         return self.search(query, search_type="artist")
 
     def search_playlists(self, query: str) -> List[Dict[str, Any]]:
-        """Searches specifically for playlists.
+        """Searches specifically for playlists using the /search/playlist endpoint.
 
         Args:
             query: The playlist name to search for.
@@ -108,7 +112,6 @@ class DeezerClient:
         Returns:
             A list of playlist result items.
         """
-        # Placeholder - uses general search for now
         return self.search(query, search_type="playlist")
 
     def get_item_url(self, item: Dict[str, Any]) -> Optional[str]:
@@ -126,16 +129,27 @@ class DeezerClient:
 # Example Usage (for testing)
 if __name__ == '__main__':
     client = DeezerClient()
-    search_query = "metallica master of puppets"
-    print(f"Searching for: {search_query}")
-    tracks = client.search(search_query, "track")
-    if tracks:
-        print("\n--- Tracks ---")
-        for track in tracks[:3]: # Show first 3
-            print(f"  - {track.get('title')} by {track.get('artist', {}).get('name')} ({client.get_item_url(track)})")
+    artist_query = "metallica"
+    album_query = "ride the lightning"
+    playlist_query = "80s metal classics"
 
-    albums = client.search_albums("master of puppets")
+    print(f"Searching for Artist: {artist_query}")
+    artists = client.search_artists(artist_query)
+    if artists:
+        print("\n--- Artists ---")
+        for artist in artists[:3]: # Show first 3
+            print(f"  - {artist.get('name')} ({client.get_item_url(artist)})")
+
+    print(f"\nSearching for Album: {album_query}")
+    albums = client.search_albums(album_query)
     if albums:
         print("\n--- Albums ---")
         for album in albums[:3]:
-            print(f"  - {album.get('title')} by {album.get('artist', {}).get('name')} ({client.get_item_url(album)})") 
+            print(f"  - {album.get('title')} by {album.get('artist', {}).get('name')} ({client.get_item_url(album)})")
+
+    print(f"\nSearching for Playlist: {playlist_query}")
+    playlists = client.search_playlists(playlist_query)
+    if playlists:
+        print("\n--- Playlists ---")
+        for pl in playlists[:3]:
+            print(f"  - {pl.get('title')} by {pl.get('user', {}).get('name')} ({client.get_item_url(pl)})") 

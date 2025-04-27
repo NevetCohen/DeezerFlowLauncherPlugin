@@ -1,12 +1,12 @@
 {
-      "ID": "YOUR_UNIQUE_PLUGIN_ID",
+      "ID": "db30f8be-7b83-4178-8c91-f2138892e1ba",
       "ActionKeyword": "de",
       "Name": "Deezer Control",
       "Description": "Search and control Deezer via Flow Launcher.",
-      "Author": "Your Name",
+      "Author": "Nevet Cohen",
       "Version": "0.1.0",
       "Language": "python",
-      "Website": "https://github.com/your_repo/DeezerFlowLauncherPlugin",
+      "Website": "https://github.com/NevetCohen/DeezerFlowLauncherPlugin",
       "IcoPath": "Icons\\app.png",
       "ExecuteFileName": "main.py"
-    } 
+    }
